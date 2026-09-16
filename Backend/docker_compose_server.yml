@@ -1,0 +1,96 @@
+services:
+  app:
+    image: ghcr.io/candlestack/spip-backend:develop
+    platform: linux/amd64
+    container_name: cs_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-spip}
+      - DB_USERNAME=${DB_USERNAME:-spip}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - SEED_DATABASE=${SEED_DATABASE:-true}
+    volumes:
+      - app_data:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    networks:
+      - cs_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9000 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 120s
+
+  nginx:
+    image: nginx:alpine
+    container_name: cs_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - app_data:/var/www/html
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d/
+    networks:
+      - cs_network
+    depends_on:
+      app:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.4
+    container_name: cs_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-spip}
+      MYSQL_USER: ${DB_USERNAME:-spip}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - cs_network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: cs_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: ${DB_USERNAME:-spip}
+      PMA_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    networks:
+      - cs_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+networks:
+  cs_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  storage:
+  bootstrap_cache:
+  app_data:

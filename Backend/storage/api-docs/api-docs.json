@@ -1,0 +1,1965 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Quiz API",
+        "description": "REST API for listing, attending, submitting, and administering quizzes. Authenticate with a Laravel Passport Bearer token.",
+        "version": "v1"
+    },
+    "servers": [
+        {
+            "url": "/api"
+        }
+    ],
+    "paths": {
+        "/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Login with email and password",
+                "description": "Authenticate any Quiz user with email and password. Returns a Passport Bearer token.",
+                "operationId": "55226ae2df532fd91386133547c13607",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "admin@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login successful"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string",
+                                                    "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "expires_in": {
+                                                    "type": "integer",
+                                                    "example": 3600
+                                                },
+                                                "user": {
+                                                    "properties": {
+                                                        "id": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                                        },
+                                                        "uuid": {
+                                                            "type": "string",
+                                                            "format": "uuid",
+                                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                                        },
+                                                        "name": {
+                                                            "type": "string",
+                                                            "example": "Admin User"
+                                                        },
+                                                        "email": {
+                                                            "type": "string",
+                                                            "example": "admin@example.com"
+                                                        },
+                                                        "role": {
+                                                            "type": "string",
+                                                            "example": "admin"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid credentials or validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login failed"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout user",
+                "description": "Logs out the currently authenticated user and invalidates the token.",
+                "operationId": "0c4943e2d2314fdc8d1c524e472e56ce",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logged out successfully"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Token is missing or invalid"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/quizzes": {
+            "get": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "List quizzes",
+                "description": "Public: pass user_id to list published quizzes for that user's country (worldwide quizzes included). Each item includes is_completed, in_progress_attempt_id, and completed_attempt_id. Admin: send a Passport Bearer token and omit user_id to list all quizzes, including unpublished ones. Each admin item includes is_published. Optional country and is_published filters apply to the admin catalog.",
+                "operationId": "1a11baa1973714606b8254dcbf3a1103",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "query",
+                        "description": "Public user UUID. Required unless authenticated as admin.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "c7f14bca-9287-489d-b92d-743e78af13d6"
+                        }
+                    },
+                    {
+                        "name": "country",
+                        "in": "query",
+                        "description": "ISO 3166-1 alpha-2 country code. Defaults to the user's stored country on the public list.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "IN"
+                        }
+                    },
+                    {
+                        "name": "is_published",
+                        "in": "query",
+                        "description": "Admin catalog only. Filter by published status.",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated quiz list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/QuizListItem"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Validation failed"
+                                        },
+                                        "errors": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "example": [
+                                                        "The user_id field is required."
+                                                    ]
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {},
+                    {
+                        "passport": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Create a quiz",
+                "description": "Admin-only. Assign a quiz to one or more countries; omit countries for a worldwide quiz.",
+                "operationId": "2e535e5be166c774a467aa06262de00c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "questions"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "World Capitals"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Know your capitals"
+                                    },
+                                    "time_limit_seconds": {
+                                        "type": "integer",
+                                        "example": 180
+                                    },
+                                    "per_question_time_seconds": {
+                                        "type": "integer",
+                                        "example": 30
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "countries": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "example": "IN"
+                                        }
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/QuizWriteQuestion"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Quiz created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz created successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizDetail"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/quizzes/{quiz}": {
+            "get": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Get quiz details",
+                "description": "Returns title, description, questions, and options. Correctness flags are included only for admins.",
+                "operationId": "c81d2f38b7a0af0cabb5577a5b2658f4",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "description": "Quiz UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Quiz detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizDetail"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quiz not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            },
+            "put": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Replace a quiz",
+                "description": "Admin-only. Send the full quiz payload, including countries and questions, to replace it.",
+                "operationId": "276e72f884709935032f186c8cbe9beb",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "World Capitals"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "time_limit_seconds": {
+                                        "type": "integer",
+                                        "example": 180
+                                    },
+                                    "per_question_time_seconds": {
+                                        "type": "integer",
+                                        "example": 30
+                                    },
+                                    "is_published": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "countries": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "example": "US"
+                                        }
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/QuizWriteQuestion"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Quiz updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizDetail"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Delete a quiz",
+                "operationId": "f4fb90d905e616f47b580cff836cdffc",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Quiz deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz deleted successfully"
+                                        },
+                                        "data": {
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Partially update a quiz",
+                "description": "Admin-only. Any omitted field is left unchanged. Sending questions replaces the full question set.",
+                "operationId": "6d7e9f29c334f4a754447231deba4ae2",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "World Capitals"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "time_limit_seconds": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "per_question_time_seconds": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "is_published": {
+                                        "type": "boolean"
+                                    },
+                                    "countries": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "example": "IN"
+                                        }
+                                    },
+                                    "questions": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/QuizWriteQuestion"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Quiz updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizDetail"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/quizzes/{quiz}/submit": {
+            "post": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Submit quiz responses",
+                "description": "Learner-only. Scores a full set of answers. If the user has an in-progress attend attempt, remaining answers are applied and that attempt is finalized into the leaderboard. If the user already completed the quiz, the existing attempt is returned and a second attempt is not created.",
+                "operationId": "9b19c2351aa5ef62f746b7344f91e12e",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "answers"
+                                ],
+                                "properties": {
+                                    "answers": {
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "question_id",
+                                                "option_ids"
+                                            ],
+                                            "properties": {
+                                                "question_id": {
+                                                    "type": "string",
+                                                    "format": "uuid"
+                                                },
+                                                "option_ids": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "format": "uuid"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Quiz submitted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Quiz submitted successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizAttempt"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/quizzes/{quiz}/leaderboard": {
+            "get": {
+                "tags": [
+                    "Quizzes"
+                ],
+                "summary": "Quiz leaderboard",
+                "description": "Best score per user (then fastest completion time) from completed and expired attempts.",
+                "operationId": "8dfe4233b041f22f74059d94ad139e03",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Leaderboard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/LeaderboardEntry"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/v1/quizzes/{quiz}/attempts": {
+            "post": {
+                "tags": [
+                    "Quiz Attempts"
+                ],
+                "summary": "Start or resume a quiz attempt",
+                "description": "Learner-only. Creates an in-progress attempt or resumes an existing one. If the user already completed or expired the quiz, that attempt is returned instead of starting a new one (retakes are not allowed). Serves the current question only while in progress.",
+                "operationId": "1a2deed0a030bd035340aef9c29c46e3",
+                "parameters": [
+                    {
+                        "name": "quiz",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attempt ready",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Attempt ready"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizAttempt"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Quiz not found"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/attempts/{attempt}": {
+            "get": {
+                "tags": [
+                    "Quiz Attempts"
+                ],
+                "summary": "Get current attempt state",
+                "description": "Returns progress, remaining quiz/question time, and the current question. Timed-out questions are auto-scored as incorrect.",
+                "operationId": "629932e8139d181be967e9c098c83ca8",
+                "parameters": [
+                    {
+                        "name": "attempt",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attempt state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizAttempt"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Resource not found"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/attempts/{attempt}/answers": {
+            "post": {
+                "tags": [
+                    "Quiz Attempts"
+                ],
+                "summary": "Record an answer",
+                "description": "Validates the current question, option ownership, and server-side time limits. Completing the last question (or hitting the quiz time limit) finalizes score and time for the submit/leaderboard APIs.",
+                "operationId": "543ecc772717e51fac2b7ef59ea41198",
+                "parameters": [
+                    {
+                        "name": "attempt",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "question_id",
+                                    "option_ids"
+                                ],
+                                "properties": {
+                                    "question_id": {
+                                        "type": "string",
+                                        "format": "uuid"
+                                    },
+                                    "option_ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Answer recorded or quiz completed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Answer recorded"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/QuizAttempt"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "409": {
+                        "description": "Attempt is no longer in progress"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/uploads/option-images": {
+            "post": {
+                "tags": [
+                    "Uploads"
+                ],
+                "summary": "Upload an option image",
+                "description": "Admin-only. Stores a jpeg, png, gif, or webp (max 2 MB) and returns a public URL to attach to a question option.",
+                "operationId": "36d4fe81800aca59ac85a7e6b2f6f62f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "image"
+                                ],
+                                "properties": {
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Image uploaded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Image uploaded"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "url": {
+                                                    "type": "string",
+                                                    "format": "uri",
+                                                    "example": "http://localhost:8000/storage/option-images/flag.png"
+                                                },
+                                                "path": {
+                                                    "type": "string",
+                                                    "example": "option-images/flag.png"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/user": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get authenticated user",
+                "description": "Returns the currently authenticated user (Bearer token required).",
+                "operationId": "040b7f9d50692b832d45e7eae32da95e",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "description": "User object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                        },
+                                        "uuid": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "John Doe"
+                                        },
+                                        "email": {
+                                            "type": "string",
+                                            "format": "email",
+                                            "example": "user@example.com"
+                                        },
+                                        "phone": {
+                                            "type": "string",
+                                            "example": "9876543212",
+                                            "nullable": true
+                                        },
+                                        "role": {
+                                            "type": "string",
+                                            "example": "customer"
+                                        },
+                                        "email_verified_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "nullable": true
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/users": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "List users",
+                "description": "Returns a paginated list of users.",
+                "operationId": "31d6686b1e27ee8b60224fbbb83f0f95",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                                                    },
+                                                    "uuid": {
+                                                        "type": "string",
+                                                        "format": "uuid",
+                                                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "John Doe"
+                                                    },
+                                                    "email": {
+                                                        "type": "string",
+                                                        "format": "email",
+                                                        "example": "user@example.com"
+                                                    },
+                                                    "phone": {
+                                                        "type": "string",
+                                                        "example": "9876543212",
+                                                        "nullable": true
+                                                    },
+                                                    "role": {
+                                                        "type": "string",
+                                                        "example": "customer"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 4
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "next": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "prev": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        },
+        "/v1/users/{uuid}": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user by UUID",
+                "description": "Returns a single user by UUID.",
+                "operationId": "1acd90fcc64995bf4c83351017ff7e06",
+                "parameters": [
+                    {
+                        "name": "uuid",
+                        "in": "path",
+                        "description": "User UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "description": "User object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                        },
+                                        "uuid": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                                        },
+                                        "name": {
+                                            "type": "string",
+                                            "example": "John Doe"
+                                        },
+                                        "email": {
+                                            "type": "string",
+                                            "format": "email",
+                                            "example": "user@example.com"
+                                        },
+                                        "phone": {
+                                            "type": "string",
+                                            "example": "9876543212",
+                                            "nullable": true
+                                        },
+                                        "role": {
+                                            "type": "string",
+                                            "example": "customer"
+                                        },
+                                        "email_verified_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "nullable": true
+                                        },
+                                        "created_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        },
+                                        "updated_at": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "No query results for model [App\\\\Models\\\\User]."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "passport": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "QuizListItem": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "a80a7ee9-3294-4c0d-b646-9fe59fd63a1b"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "India General Knowledge"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "A short quiz about India."
+                    },
+                    "time_limit_seconds": {
+                        "type": "integer",
+                        "example": 180,
+                        "nullable": true
+                    },
+                    "per_question_time_seconds": {
+                        "type": "integer",
+                        "example": 30,
+                        "nullable": true
+                    },
+                    "countries": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "IN"
+                        }
+                    },
+                    "question_count": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "is_completed": {
+                        "description": "Present on the public customer list",
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "in_progress_attempt_id": {
+                        "description": "Present on the public customer list when the user has an unfinished attempt",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "completed_attempt_id": {
+                        "description": "Present on the public customer list when the user already finished the quiz",
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "is_published": {
+                        "description": "Present on the admin catalog list",
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "QuizOption": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "label": {
+                        "type": "string",
+                        "example": "New Delhi"
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "https://flagcdn.com/w160/in.png",
+                        "nullable": true
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "is_correct": {
+                        "description": "Included for admins only",
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "QuizQuestion": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "example": "What is the capital of India?"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "single_choice",
+                        "enum": [
+                            "single_choice",
+                            "multiple_choice"
+                        ]
+                    },
+                    "points": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "time_limit_seconds": {
+                        "type": "integer",
+                        "example": 30,
+                        "nullable": true
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QuizOption"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "QuizDetail": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "India General Knowledge"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "time_limit_seconds": {
+                        "type": "integer",
+                        "example": 180,
+                        "nullable": true
+                    },
+                    "per_question_time_seconds": {
+                        "type": "integer",
+                        "example": 30,
+                        "nullable": true
+                    },
+                    "is_published": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "countries": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "IN"
+                        }
+                    },
+                    "questions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QuizQuestion"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "QuizWriteOption": {
+                "required": [
+                    "is_correct"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Existing option UUID when updating",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "label": {
+                        "description": "Optional when image_url is provided",
+                        "type": "string",
+                        "example": "Paris"
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "example": "https://flagcdn.com/w160/fr.png",
+                        "nullable": true
+                    },
+                    "is_correct": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "type": "object"
+            },
+            "QuizWriteQuestion": {
+                "required": [
+                    "prompt",
+                    "options"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Existing question UUID when updating",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "example": "What is the capital of France?"
+                    },
+                    "type": {
+                        "type": "string",
+                        "example": "single_choice",
+                        "enum": [
+                            "single_choice",
+                            "multiple_choice"
+                        ]
+                    },
+                    "points": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "time_limit_seconds": {
+                        "type": "integer",
+                        "example": 20,
+                        "nullable": true
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QuizWriteOption"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "QuizAttemptAnswer": {
+                "properties": {
+                    "question_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "selected_option_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    "is_correct": {
+                        "type": "boolean",
+                        "example": true,
+                        "nullable": true
+                    },
+                    "points_awarded": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "time_taken_seconds": {
+                        "type": "integer",
+                        "example": 8,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "QuizAttempt": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "quiz_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "in_progress",
+                        "enum": [
+                            "in_progress",
+                            "completed",
+                            "expired"
+                        ]
+                    },
+                    "score": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "time_taken_seconds": {
+                        "type": "integer",
+                        "example": 42,
+                        "nullable": true
+                    },
+                    "remaining_seconds": {
+                        "type": "integer",
+                        "example": 179,
+                        "nullable": true
+                    },
+                    "current_question_remaining_seconds": {
+                        "type": "integer",
+                        "example": 28,
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "progress": {
+                        "properties": {
+                            "answered": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "total": {
+                                "type": "integer",
+                                "example": 3
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "current_question": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/QuizQuestion"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "answers": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QuizAttemptAnswer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "LeaderboardEntry": {
+                "properties": {
+                    "rank": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "user_name": {
+                        "type": "string",
+                        "example": "Admin User"
+                    },
+                    "score": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "time_taken_seconds": {
+                        "type": "integer",
+                        "example": 42
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "PaginationMeta": {
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "next": {
+                        "type": "integer",
+                        "example": 0
+                    },
+                    "prev": {
+                        "type": "integer",
+                        "example": 0
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "passport": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Paste the Passport access token from POST /v1/auth/login. Swagger UI sends it as Authorization: Bearer {token}."
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "Quiz API email and password authentication"
+        },
+        {
+            "name": "Quizzes",
+            "description": "Quiz listing, details, admin CRUD, submissions, and leaderboards"
+        },
+        {
+            "name": "Quiz Attempts",
+            "description": "Start, resume, and attend a quiz one question at a time"
+        },
+        {
+            "name": "Uploads",
+            "description": "Admin media uploads for quiz option images"
+        },
+        {
+            "name": "Users",
+            "description": "Quiz API Endpoints for user management"
+        }
+    ],
+    "security": [
+        {
+            "passport": []
+        }
+    ]
+}
